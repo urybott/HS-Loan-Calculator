@@ -2,19 +2,7 @@ import math
 import argparse
 
 
-parser = argparse.ArgumentParser(description="This program is Loan Calculator.")
-#parser.add_argument("-t", "--type", required=True,
-parser.add_argument("-t", "--type", choices=["diff", "annuity"], required=True,
-                    help="Incorrect parameters.")
-parser.add_argument("-i", "--interest", required=True,
-                    help="Incorrect parameters.")
-parser.add_argument("-pr", "--principal")
-parser.add_argument("-pa", "--payment")
-parser.add_argument("-pe", "--periods")
-args = parser.parse_args()
-
-
-msg_ = [""] * 15
+msg_ = [""] * 20
 msg_[0] = "Enter the loan principal:"
 msg_[1] = '''What do you want to calculate?
 type "n" for number of monthly payments,
@@ -33,6 +21,9 @@ msg_[11] = '{} year{} '
 msg_[12] = 'and '
 msg_[13] = '{} month{} '
 msg_[14] = 'to repay this loan!'
+msg_[15] = 'Incorrect parameters'
+msg_[16] = "Month {}: payment is {}"
+msg_[17] = "Overpayment ="
 
 def is_num_str(v):
     isnum = False
@@ -71,58 +62,72 @@ def str_input(choices=""):
             print(msg_[m])
     return a
 
+parser = argparse.ArgumentParser(description="This program is Loan Calculator.")
+# parser.add_argument("-t", "--type", choices=["diff", "annuity"], required=True,
+#                     help="Incorrect parameters.")
+parser.add_argument("-t", "--type")
+parser.add_argument("-i", "--interest", type=float)
+parser.add_argument("--principal", type=int)  # "-pr", 
+parser.add_argument("--payment", type=int)  # "-pa", 
+parser.add_argument("--periods", type=int)  # "-pe", 
+args = parser.parse_args()
 
-# print(msg_[0])
-# amount = int_input()
-print(msg_[1])
-user_choices = str_input("nap")
+typ = args.type
+principal = args.principal
+payment = args.payment
+periods = args.periods
+interest = args.interest
 
-principal = 0
-payment = 0
-months = 0
-interest = 0
+err = False
+if typ is None or not typ in ["diff", "annuity"] or args.interest is None:
+    err = 1  # True
+elif typ == "diff" and (not payment is None or [periods, principal].count(None) != 0):
+    err = 2  # True
+elif typ == "annuity" and [payment, periods, principal].count(None) != 1:
+    err = 3  # True
+elif len([v for v in [payment, periods, principal, interest] if not v is None and v < 0]) > 0:
+    err = 4  # True
 
-if user_choices != "p":
-    print(msg_[0])
-    principal = num_input()
-if user_choices != "a":
-    print(msg_[2])
-    payment = num_input()
-if user_choices != "n":
-    print(msg_[3])
-    months = int(num_input())
-print(msg_[8])
-interest = num_input()
-
-if user_choices == "n":
-    i = interest / 1200
-    all_months = math.ceil(math.log(payment / (payment - i * principal), i + 1))
-    #all_months = int(principal / payment)
-    # if amount % payment:
-        # all_months +=1
-    years = int(all_months / 12)
-    months = all_months % 12
-    sm = "" if months == 1 else "s"
-    sy = "" if years == 1 else "s"
-    res = msg_[10]
-    res += msg_[11].format(years, sy) if years > 0 else ""
-    res += msg_[12] if years > 0 and months > 0 else ""
-    res += msg_[13].format(months, sm) if months > 0 else ""
-    res += msg_[14]
-    print(res)
-elif user_choices == "p":
-    i = interest / 1200
-    principal = int(payment / ((i * (1 + i) ** months) / (((1 + i) ** months - 1))))
-    print(msg_[9].format(principal))
+if err:
+    print(msg_[15])  # , err
+    # raise Exception("stop")
 else:
-    # user_choices == "a"
-    i = interest / 1200
-    payment = math.ceil(principal * ((i * (1 + i) ** months) / (((1 + i) ** months - 1))))
-    lastpayment = 0
-    # payment = int(amount / months)  # + 0.5
-    # if amount % months:
-        # payment += 1
-    # lastpayment = principal % months  #
-    # lastpayment = (principal - (months - 1) * payment)
-    ret = msg_[5] + str(payment) + (msg_[6] + str(lastpayment) if lastpayment else "") + "!"
-    print(ret)
+    interes = interest / 1200
+
+    if periods is None:
+        periods = math.ceil(math.log(payment / (payment - interes * principal), interes + 1))
+        years = int(periods / 12)
+        months = periods % 12
+        sm = "" if months == 1 else "s"
+        sy = "" if years == 1 else "s"
+        res = msg_[10]
+        res += msg_[11].format(years, sy) if years > 0 else ""
+        res += msg_[12] if years > 0 and months > 0 else ""
+        res += msg_[13].format(months, sm) if months > 0 else ""
+        res += msg_[14]
+        print(res)
+        print(msg_[17], payment * periods - principal)
+
+    elif principal is None:
+        principal = int(payment / ((interes * (1 + interes) ** periods) / (((1 + interes) ** periods - 1))))
+        print(msg_[9].format(principal))
+        print(msg_[17], payment * periods - principal)
+
+        # payment is None
+    elif typ == "diff":
+        payment = 0
+        summ = 0
+        p = principal / periods
+        for m in range(periods):
+            payment = int(p + interes * (principal - (principal * m) / periods) + 0.9)
+            summ += payment
+            print(msg_[16].format(m + 1, payment))
+        print(msg_[17], summ - principal)
+
+    else:  # typ == "annuity"
+        payment = math.ceil(principal * ((interes * (1 + interes) ** periods) / (((1 + interes) ** periods - 1))))
+        lastpayment = 0
+        ret = msg_[5] + str(payment) + (msg_[6] + str(lastpayment) if lastpayment else "") + "!"
+        print(ret)
+        print(msg_[17], payment * periods - principal)
+
